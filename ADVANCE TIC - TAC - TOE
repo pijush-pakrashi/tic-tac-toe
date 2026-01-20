@@ -1,0 +1,186 @@
+import time
+import os
+import math
+
+# ================= COLORS & CLEAR =================
+GREEN = "\033[92m"
+RESET = "\033[0m"
+CLEAR = "cls" if os.name == "nt" else "clear"
+
+# ================= SOUND =================
+def play_sound(win=True):
+    try:
+        import winsound
+        if win:
+            winsound.Beep(800, 500)
+            winsound.Beep(1000, 500)
+        else:
+            winsound.Beep(400, 300)
+    except:
+        print("\a", end="")  # Linux / Mac terminal bell
+
+# ================= DISPLAY =================
+def display_board(board, win_info=None, blink=False):
+    overlay = [[' ']*3 for _ in range(3)]
+
+    if win_info:
+        kind, val = win_info
+        if kind == "row":
+            for c in range(3):
+                overlay[val][c] = '─'
+        elif kind == "col":
+            for r in range(3):
+                overlay[r][val] = '│'
+        elif kind == "diag" and val == "\\":
+            for i in range(3):
+                overlay[i][i] = '\\'
+        elif kind == "diag" and val == "/":
+            overlay[0][2] = '/'
+            overlay[1][1] = '/'
+            overlay[2][0] = '/'
+
+    os.system(CLEAR)
+    print("\n")
+
+    for r in range(3):
+        for c in range(3):
+            if overlay[r][c] != ' ':
+                ch = GREEN + overlay[r][c] + RESET if blink else overlay[r][c]
+            else:
+                ch = board[r][c]
+            print(f" {ch} ", end="")
+            if c < 2:
+                print("|", end="")
+        print()
+        if r < 2:
+            print("---|---|---")
+    print("\n")
+
+# ================= WIN CHECK =================
+def check_win(board, player):
+    for i in range(3):
+        if board[i][0] == board[i][1] == board[i][2] == player:
+            return True, ("row", i)
+        if board[0][i] == board[1][i] == board[2][i] == player:
+            return True, ("col", i)
+
+    if board[0][0] == board[1][1] == board[2][2] == player:
+        return True, ("diag", "\\")
+    if board[0][2] == board[1][1] == board[2][0] == player:
+        return True, ("diag", "/")
+
+    return False, None
+
+def is_draw(board):
+    return all(board[r][c] != ' ' for r in range(3) for c in range(3))
+
+# ================= MINIMAX AI =================
+def minimax(board, depth, is_max):
+    if check_win(board, 'O')[0]:
+        return 10 - depth
+    if check_win(board, 'X')[0]:
+        return depth - 10
+    if is_draw(board):
+        return 0
+
+    if is_max:
+        best = -math.inf
+        for r in range(3):
+            for c in range(3):
+                if board[r][c] == ' ':
+                    board[r][c] = 'O'
+                    best = max(best, minimax(board, depth + 1, False))
+                    board[r][c] = ' '
+        return best
+    else:
+        best = math.inf
+        for r in range(3):
+            for c in range(3):
+                if board[r][c] == ' ':
+                    board[r][c] = 'X'
+                    best = min(best, minimax(board, depth + 1, True))
+                    board[r][c] = ' '
+        return best
+
+def best_move(board):
+    best_val = -math.inf
+    move = (-1, -1)
+
+    for r in range(3):
+        for c in range(3):
+            if board[r][c] == ' ':
+                board[r][c] = 'O'
+                val = minimax(board, 0, False)
+                board[r][c] = ' '
+                if val > best_val:
+                    best_val = val
+                    move = (r, c)
+    return move
+
+# ================= BLINK =================
+def blink_win(board, info):
+    play_sound(True)
+    for _ in range(6):
+        display_board(board, info, True)
+        time.sleep(0.3)
+        display_board(board)
+        time.sleep(0.3)
+
+# ================= MAIN =================
+def main():
+    print("🔥 TIC TAC TOE — UNBEATABLE AI 🔥")
+    print("You = X | Computer = O")
+    input("Press Enter to start...")
+
+    while True:
+        board = [[' ', ' ', ' '] for _ in range(3)]
+
+        while True:
+            display_board(board)
+            print("Your Turn (X)")
+
+            try:
+                r = int(input("Row (1-3): ")) - 1
+                c = int(input("Col (1-3): ")) - 1
+                if not (0 <= r <= 2 and 0 <= c <= 2) or board[r][c] != ' ':
+                    continue
+            except:
+                continue
+
+            board[r][c] = 'X'
+            win, info = check_win(board, 'X')
+            if win:
+                blink_win(board, info)
+                print("🎉 YOU WON (IMPOSSIBLE 😱)")
+                break
+
+            if is_draw(board):
+                play_sound(False)
+                display_board(board)
+                print("😐 DRAW")
+                break
+
+            r, c = best_move(board)
+            board[r][c] = 'O'
+
+            win, info = check_win(board, 'O')
+            if win:
+                blink_win(board, info)
+                print("🤖 COMPUTER WINS")
+                break
+
+            if is_draw(board):
+                play_sound(False)
+                display_board(board)
+                print("😐 DRAW")
+                break
+
+        if input("Play again? (y/n): ").lower() != 'y':
+            break
+
+    print("Thanks for playing ❤️")
+
+# ================= RUN =================
+if __name__ == "__main__":
+    main()
+
